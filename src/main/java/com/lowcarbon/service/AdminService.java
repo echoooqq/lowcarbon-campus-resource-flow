@@ -2,14 +2,14 @@ package com.lowcarbon.service;
 
 import com.lowcarbon.dao.ItemDao;
 import com.lowcarbon.dao.UserDao;
-import com.lowcarbon.dao.impl.ItemDaoImpl;
-import com.lowcarbon.dao.impl.UserDaoImpl;
 import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.ItemStatus;
 import com.lowcarbon.entity.User;
 import com.lowcarbon.entity.UserRole;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
+import com.lowcarbon.factory.ServiceFactory;
 import com.lowcarbon.util.PasswordUtil;
 
 import java.nio.file.Path;
@@ -48,11 +48,12 @@ public class AdminService {
     private final StatisticsService statisticsService;
 
     public AdminService() {
-        this.userDao = new UserDaoImpl();
-        this.itemDao = new ItemDaoImpl();
-        this.userService = new UserService();
-        this.itemService = new ItemService();
-        this.statisticsService = new StatisticsService();
+        this.userDao = DaoFactory.getUserDao();
+        this.itemDao = DaoFactory.getItemDao();
+        // 依赖 Service 由 ServiceFactory 负责装配完整依赖链
+        this.userService = ServiceFactory.getUserService();
+        this.itemService = ServiceFactory.getItemService();
+        this.statisticsService = ServiceFactory.getStatisticsService();
     }
 
     /**

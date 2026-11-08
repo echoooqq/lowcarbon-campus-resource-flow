@@ -1,11 +1,11 @@
 package com.lowcarbon.service;
 
 import com.lowcarbon.dao.UserDao;
-import com.lowcarbon.dao.impl.UserDaoImpl;
 import com.lowcarbon.entity.User;
 import com.lowcarbon.entity.UserRole;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
 import com.lowcarbon.util.PasswordUtil;
 import com.lowcarbon.util.Validator;
 
@@ -37,7 +37,7 @@ public class UserService {
      * 使用默认 DAO 实现构造。
      */
     public UserService() {
-        this.userDao = new UserDaoImpl();
+        this.userDao = DaoFactory.getUserDao();
     }
 
     /**

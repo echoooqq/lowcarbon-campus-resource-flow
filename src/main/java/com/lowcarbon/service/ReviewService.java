@@ -3,15 +3,14 @@ package com.lowcarbon.service;
 import com.lowcarbon.dao.ItemDao;
 import com.lowcarbon.dao.ReviewDao;
 import com.lowcarbon.dao.TransactionDao;
-import com.lowcarbon.dao.impl.ItemDaoImpl;
-import com.lowcarbon.dao.impl.ReviewDaoImpl;
-import com.lowcarbon.dao.impl.TransactionDaoImpl;
 import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.Review;
 import com.lowcarbon.entity.Transaction;
 import com.lowcarbon.entity.TransactionStatus;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
+import com.lowcarbon.factory.ServiceFactory;
 import com.lowcarbon.util.Validator;
 
 import java.util.List;
@@ -59,11 +58,11 @@ public class ReviewService {
     private final UserService userService;
 
     public ReviewService() {
-        this.reviewDao = new ReviewDaoImpl();
-        this.transactionDao = new TransactionDaoImpl();
-        this.itemDao = new ItemDaoImpl();
-        // UserService 默认也是走真实 DAO
-        this.userService = new UserService();
+        this.reviewDao = DaoFactory.getReviewDao();
+        this.transactionDao = DaoFactory.getTransactionDao();
+        this.itemDao = DaoFactory.getItemDao();
+        // UserService 由 ServiceFactory 负责装配完整依赖
+        this.userService = ServiceFactory.getUserService();
     }
 
     /**

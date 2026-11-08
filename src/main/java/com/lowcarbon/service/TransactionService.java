@@ -3,9 +3,6 @@ package com.lowcarbon.service;
 import com.lowcarbon.dao.ItemDao;
 import com.lowcarbon.dao.TransactionDao;
 import com.lowcarbon.dao.UserDao;
-import com.lowcarbon.dao.impl.ItemDaoImpl;
-import com.lowcarbon.dao.impl.TransactionDaoImpl;
-import com.lowcarbon.dao.impl.UserDaoImpl;
 import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.ItemStatus;
 import com.lowcarbon.entity.Transaction;
@@ -13,6 +10,7 @@ import com.lowcarbon.entity.TransactionStatus;
 import com.lowcarbon.entity.User;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -52,9 +50,9 @@ public class TransactionService {
     private final UserDao userDao;
 
     public TransactionService() {
-        this.transactionDao = new TransactionDaoImpl();
-        this.itemDao = new ItemDaoImpl();
-        this.userDao = new UserDaoImpl();
+        this.transactionDao = DaoFactory.getTransactionDao();
+        this.itemDao = DaoFactory.getItemDao();
+        this.userDao = DaoFactory.getUserDao();
     }
 
     public TransactionService(TransactionDao transactionDao, ItemDao itemDao, UserDao userDao) {

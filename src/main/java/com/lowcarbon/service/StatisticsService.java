@@ -5,11 +5,6 @@ import com.lowcarbon.dao.ItemDao;
 import com.lowcarbon.dao.ReviewDao;
 import com.lowcarbon.dao.TransactionDao;
 import com.lowcarbon.dao.UserDao;
-import com.lowcarbon.dao.impl.CategoryDaoImpl;
-import com.lowcarbon.dao.impl.ItemDaoImpl;
-import com.lowcarbon.dao.impl.ReviewDaoImpl;
-import com.lowcarbon.dao.impl.TransactionDaoImpl;
-import com.lowcarbon.dao.impl.UserDaoImpl;
 import com.lowcarbon.entity.Category;
 import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.ItemStatus;
@@ -19,6 +14,7 @@ import com.lowcarbon.entity.TransactionStatus;
 import com.lowcarbon.entity.User;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
 import com.lowcarbon.util.CsvExporter;
 
 import java.io.IOException;
@@ -61,11 +57,11 @@ public class StatisticsService {
     private final CategoryDao categoryDao;
 
     public StatisticsService() {
-        this.userDao = new UserDaoImpl();
-        this.itemDao = new ItemDaoImpl();
-        this.transactionDao = new TransactionDaoImpl();
-        this.reviewDao = new ReviewDaoImpl();
-        this.categoryDao = new CategoryDaoImpl();
+        this.userDao = DaoFactory.getUserDao();
+        this.itemDao = DaoFactory.getItemDao();
+        this.transactionDao = DaoFactory.getTransactionDao();
+        this.reviewDao = DaoFactory.getReviewDao();
+        this.categoryDao = DaoFactory.getCategoryDao();
     }
 
     /** 测试用注入构造器。 */

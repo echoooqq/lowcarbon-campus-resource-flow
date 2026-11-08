@@ -3,9 +3,6 @@ package com.lowcarbon.service;
 import com.lowcarbon.dao.CategoryDao;
 import com.lowcarbon.dao.ItemDao;
 import com.lowcarbon.dao.UserDao;
-import com.lowcarbon.dao.impl.CategoryDaoImpl;
-import com.lowcarbon.dao.impl.ItemDaoImpl;
-import com.lowcarbon.dao.impl.UserDaoImpl;
 import com.lowcarbon.entity.Category;
 import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.ItemStatus;
@@ -14,9 +11,18 @@ import com.lowcarbon.entity.User;
 import com.lowcarbon.entity.UserRole;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
+import com.lowcarbon.factory.DaoFactory;
+import com.lowcarbon.observer.ItemStatusObserver;
+import com.lowcarbon.observer.ItemStatusSubject;
+import com.lowcarbon.strategy.CategoryFilterStrategy;
+import com.lowcarbon.strategy.CompositeFilterStrategy;
+import com.lowcarbon.strategy.ItemFilterStrategy;
+import com.lowcarbon.strategy.KeywordFilterStrategy;
+import com.lowcarbon.strategy.PriceRangeFilterStrategy;
 import com.lowcarbon.util.Validator;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +37,7 @@ import java.util.logging.Logger;
  * @author lowcarbon-team
  * @since 2026-11-09
  */
-public class ItemService {
+public class ItemService implements ItemStatusSubject {
 
     private static final Logger LOGGER = Logger.getLogger(ItemService.class.getName());
 
@@ -40,12 +46,19 @@ public class ItemService {
     private final CategoryDao categoryDao;
 
     /**
+     * 物品状态变更观察者列表（CopyOnWriteArrayList 保证并发安全 + 遍历安全）。
+     * <p>
+     * 应用：观察者模式——transitionStatus 成功后逐一通知观察者。
+     */
+    private final List<ItemStatusObserver> observers = new CopyOnWriteArrayList<>();
+
+    /**
      * 使用默认 DAO 实现构造。
      */
     public ItemService() {
-        this.itemDao = new ItemDaoImpl();
-        this.userDao = new UserDaoImpl();
-        this.categoryDao = new CategoryDaoImpl();
+        this.itemDao = DaoFactory.getItemDao();
+        this.userDao = DaoFactory.getUserDao();
+        this.categoryDao = DaoFactory.getCategoryDao();
     }
 
     /**
@@ -337,6 +350,9 @@ public class ItemService {
             itemDao.updateStatus(itemId, newStatus);
             LOGGER.log(Level.INFO, "物品状态变更: itemId={0}, {1} → {2}",
                     new Object[]{itemId, oldStatus, newStatus});
+
+            // 观察者模式：状态变更成功后逐一通知观察者
+            notifyObservers(itemId, oldStatus, newStatus);
         } catch (DaoException e) {
             throw new BusinessException("状态更新失败，请稍后再试", e);
         }
@@ -401,7 +417,14 @@ public class ItemService {
     public List<Item> searchOnSale(String keyword, Long categoryId,
                                    double minPrice, double maxPrice) {
         try {
-            return itemDao.search(keyword, categoryId, minPrice, maxPrice, ItemStatus.ON_SALE);
+            // 策略模式：先从 DAO 拉全部在售物品，再通过组合策略链在内存中精筛
+            List<Item> onSaleItems = itemDao.findByStatus(ItemStatus.ON_SALE);
+            ItemFilterStrategy filter = new CompositeFilterStrategy(
+                    new KeywordFilterStrategy(keyword),
+                    new CategoryFilterStrategy(categoryId),
+                    new PriceRangeFilterStrategy(minPrice, maxPrice)
+            );
+            return filter.filter(onSaleItems);
         } catch (DaoException e) {
             throw new BusinessException("物品筛选失败", e);
         }
@@ -415,7 +438,8 @@ public class ItemService {
             return List.of();
         }
         try {
-            return itemDao.search(null, categoryId, -1, -1, ItemStatus.ON_SALE);
+            List<Item> onSaleItems = itemDao.findByStatus(ItemStatus.ON_SALE);
+            return new CategoryFilterStrategy(categoryId).filter(onSaleItems);
         } catch (DaoException e) {
             throw new BusinessException("分类筛选失败", e);
         }
@@ -429,7 +453,8 @@ public class ItemService {
             return List.of();
         }
         try {
-            return itemDao.search(keyword, null, -1, -1, ItemStatus.ON_SALE);
+            List<Item> onSaleItems = itemDao.findByStatus(ItemStatus.ON_SALE);
+            return new KeywordFilterStrategy(keyword).filter(onSaleItems);
         } catch (DaoException e) {
             throw new BusinessException("关键词搜索失败", e);
         }
@@ -440,7 +465,8 @@ public class ItemService {
      */
     public List<Item> listByPriceRange(double minPrice, double maxPrice) {
         try {
-            return itemDao.search(null, null, minPrice, maxPrice, ItemStatus.ON_SALE);
+            List<Item> onSaleItems = itemDao.findByStatus(ItemStatus.ON_SALE);
+            return new PriceRangeFilterStrategy(minPrice, maxPrice).filter(onSaleItems);
         } catch (DaoException e) {
             throw new BusinessException("价格区间筛选失败", e);
         }
@@ -523,5 +549,44 @@ public class ItemService {
             case SOLD     -> "已成交";
             case OFF_SHELF -> "已下架";
         };
+    }
+
+    // ==================== 观察者模式（Observer Pattern） ====================
+
+    @Override
+    public void addObserver(ItemStatusObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    @Override
+    public void removeObserver(ItemStatusObserver observer) {
+        if (observer != null) {
+            observers.remove(observer);
+        }
+    }
+
+    /**
+     * 通知所有观察者。
+     * <p>
+     * 观察者如果抛出异常，只记录 WARNING 日志，不中断其余观察者的通知，
+     * 也不影响主业务逻辑的成功返回——Subject 对 Observer 是松散耦合的。
+     *
+     * @param itemId    物品 ID
+     * @param oldStatus 变更前状态
+     * @param newStatus 变更后状态
+     */
+    private void notifyObservers(Long itemId, ItemStatus oldStatus, ItemStatus newStatus) {
+        for (ItemStatusObserver observer : observers) {
+            try {
+                observer.onStatusChanged(itemId, oldStatus, newStatus);
+            } catch (Exception ex) {
+                LOGGER.log(Level.WARNING,
+                        "观察者执行异常，跳过当前观察者（不影响主流程）。observer="
+                                + observer.getClass().getSimpleName()
+                                + ", itemId=" + itemId, ex);
+            }
+        }
     }
 }
