@@ -7,6 +7,7 @@ import com.lowcarbon.gui.panel.ItemManagePanel;
 import com.lowcarbon.gui.panel.ItemPublishPanel;
 import com.lowcarbon.gui.panel.LoginPanel;
 import com.lowcarbon.gui.panel.RegisterPanel;
+import com.lowcarbon.gui.panel.StatisticsPanel;
 import com.lowcarbon.gui.panel.TransactionPanel;
 
 import javax.swing.BorderFactory;
@@ -63,6 +64,9 @@ public class MainFrame extends JFrame {
     /** 内容区卡片名：流转记录。 */
     public static final String CONTENT_TX = "TX";
 
+    /** 内容区卡片名：统计报表。 */
+    public static final String CONTENT_STATS = "STATS";
+
     private static final String WINDOW_TITLE = "低碳校园资源循环流转桌面系统 v1.0.0";
     private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 680;
@@ -87,6 +91,9 @@ public class MainFrame extends JFrame {
 
     /** 流转记录面板。 */
     private TransactionPanel txPanel;
+
+    /** 统计报表面板。 */
+    private StatisticsPanel statsPanel;
 
     /** 当前登录用户；未登录时为 {@code null}。 */
     private User currentUser;
@@ -220,6 +227,18 @@ public class MainFrame extends JFrame {
         txPanel.refresh();
     }
 
+    /**
+     * 导航到统计报表面板，并刷新数据。
+     */
+    public void showStatisticsPanel() {
+        if (contentLayout == null || statsPanel == null) {
+            return;
+        }
+        itemPublishPanel.exitEditMode();
+        contentLayout.show(contentPanel, CONTENT_STATS);
+        statsPanel.refresh();
+    }
+
     // ==================== 主界面外壳 ====================
 
     /**
@@ -272,6 +291,10 @@ public class MainFrame extends JFrame {
         navTx.addActionListener(e -> showTransactionPanel());
         navPanel.add(navTx);
 
+        JButton navStats = createNavButton("统计报表");
+        navStats.addActionListener(e -> showStatisticsPanel());
+        navPanel.add(navStats);
+
         navPanel.add(Box.createVerticalGlue());
         root.add(navPanel, BorderLayout.WEST);
 
@@ -290,6 +313,9 @@ public class MainFrame extends JFrame {
 
         txPanel = new TransactionPanel(this);
         contentPanel.add(txPanel, CONTENT_TX);
+
+        statsPanel = new StatisticsPanel(this);
+        contentPanel.add(statsPanel, CONTENT_STATS);
 
         root.add(contentPanel, BorderLayout.CENTER);
 
