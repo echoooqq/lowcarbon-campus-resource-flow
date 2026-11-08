@@ -426,6 +426,14 @@ public class ItemServiceTest {
         assertEquals(1, service.countItems());
     }
 
+    @Test
+    public void testListAllCategories() {
+        // setUp 已预置 1 个分类
+        List<Category> list = service.listAllCategories();
+        assertEquals(1, list.size());
+        assertEquals("教材", list.get(0).getName());
+    }
+
     // ==================== 辅助 ====================
 
     private Item publishItem(String name, double price) {

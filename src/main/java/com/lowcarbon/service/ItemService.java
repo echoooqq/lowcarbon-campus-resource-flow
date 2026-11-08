@@ -447,6 +447,19 @@ public class ItemService {
     }
 
     /**
+     * 查询全部物品分类（供 GUI 下拉框使用，如浏览筛选、发布表单）。
+     *
+     * @return 分类列表
+     */
+    public List<Category> listAllCategories() {
+        try {
+            return categoryDao.findAll();
+        } catch (DaoException e) {
+            throw new BusinessException("获取分类列表失败", e);
+        }
+    }
+
+    /**
      * 管理员视角：查询全部物品（含所有状态）。
      */
     public List<Item> listAll() {
