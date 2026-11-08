@@ -267,13 +267,10 @@ public class ItemService implements ItemStatusSubject {
             throw new BusinessException("当前状态不允许下架：" + item.getStatus().getLabel());
         }
 
-        try {
-            itemDao.updateStatus(itemId, ItemStatus.OFF_SHELF);
-            LOGGER.log(Level.INFO, "发布者下架物品: itemId={0}, operatorId={1}",
-                    new Object[]{itemId, operatorId});
-        } catch (DaoException e) {
-            throw new BusinessException("下架失败，请稍后再试", e);
-        }
+        // 走 transitionStatus 路径——触发观察者通知（CreditAdjustObserver 等）
+        transitionStatus(itemId, ItemStatus.OFF_SHELF);
+        LOGGER.log(Level.INFO, "发布者下架物品: itemId={0}, operatorId={1}",
+                new Object[]{itemId, operatorId});
     }
 
     /**
@@ -306,13 +303,15 @@ public class ItemService implements ItemStatusSubject {
         // 目标物品存在
         Item item = getItemOrThrow(itemId);
 
-        try {
-            itemDao.updateStatus(itemId, ItemStatus.OFF_SHELF);
-            LOGGER.log(Level.WARNING, "管理员强制下架物品: itemId={0}, name={1}, publisherId={2}, adminId={3}, reason={4}",
-                    new Object[]{itemId, item.getName(), item.getPublisherId(), adminId, reason == null ? "未说明" : reason});
-        } catch (DaoException e) {
-            throw new BusinessException("强制下架失败，请稍后再试", e);
+        // 走 transitionStatus 路径——触发观察者通知（CreditAdjustObserver 等）
+        // 管理员可以从 ON_SALE 或 RESERVED 状态下架（SOLD 已成交禁止，OFF_SHELF 已下架无需再撤）
+        if (item.getStatus() == ItemStatus.SOLD || item.getStatus() == ItemStatus.OFF_SHELF) {
+            throw new BusinessException("当前状态不允许强制下架：" + item.getStatus().getLabel());
         }
+
+        transitionStatus(itemId, ItemStatus.OFF_SHELF);
+        LOGGER.log(Level.WARNING, "管理员强制下架物品: itemId={0}, name={1}, publisherId={2}, adminId={3}, reason={4}",
+                new Object[]{itemId, item.getName(), item.getPublisherId(), adminId, reason == null ? "未说明" : reason});
     }
 
     // ==================== 状态流转（I-04） ====================
