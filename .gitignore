@@ -1,0 +1,32 @@
+# Maven
+target/
+*.jar
+*.class
+*.war
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.c9/
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# 本地临时下载文件（不上传 tools 目录）
+tools/

@@ -1,0 +1,168 @@
+@startuml 低碳校园资源循环流转系统 - 核心时序图
+
+title 时序图合集（3 张核心业务流程）
+
+' ============================================================
+' 时序图 1：发布闲置物品流程
+' ============================================================
+actor "用户" as User
+participant "MainFrame" as MF
+participant "ItemPublishPanel" as Panel
+participant "ItemService" as Svc
+participant "ItemDao" as Dao
+participant "DatabaseManager" as DB
+database "SQLite" as SQLite
+
+== 用户发布闲置物品 ==
+
+User -> MF : 点击"发布物品"菜单
+MF -> Panel : 显示 ItemPublishPanel
+Panel -> Panel : 填写物品信息\n(名称/分类/描述/价格/交易类型)
+User -> Panel : 点击"提交发布"
+
+Panel -> Svc : publishItem(userId, item)
+activate Svc
+
+Svc -> Svc : 校验参数非空
+Svc -> Svc : 设置状态 ON_SALE\n设置 publishTime
+Svc -> Dao : insert(item)
+activate Dao
+
+Dao -> DB : getConnection()
+activate DB
+DB --> Dao : Connection
+Dao -> SQLite : INSERT INTO item
+activate SQLite
+SQLite --> Dao : 返回生成的 itemId
+deactivate SQLite
+
+Dao --> Svc : itemId
+deactivate Dao
+Svc --> Panel : Item(带 itemId)
+deactivate Svc
+
+Panel -> Panel : 显示"发布成功"弹窗
+Panel -> MF : 返回物品列表
+MF -> MF : 导航到 ItemListPanel
+
+@enduml
+
+' ============================================================
+' 时序图 2：发起物品流转与完成流程
+' ============================================================
+@startuml 发起物品流转 -> 完成流程
+
+actor "用户A(发起人)" as UserA
+actor "用户B(发布人)" as UserB
+participant "ItemListPanel" as List
+participant "TransactionPanel" as Trans
+participant "ItemService" as ItemSvc
+participant "TransactionService" as TransSvc
+participant "TransactionDao" as TransDao
+participant "ItemDao" as ItemDao
+database "SQLite" as DB
+
+== 浏览与发起意向 ==
+UserA -> List : 浏览物品列表
+List -> List : 搜索/筛选
+UserA -> List : 点击感兴趣的物品
+
+UserA -> Trans : 点击"发起交换/购买意向"
+Trans -> TransSvc : initiateTransaction(initiatorId, itemId)
+activate TransSvc
+
+TransSvc -> ItemDao : findById(itemId)
+ItemDao -> DB : SELECT * FROM item WHERE item_id=?
+DB --> ItemDao : Item
+ItemDao --> TransSvc : Item
+
+TransSvc -> TransSvc : 检查物品状态 ON_SALE
+TransSvc -> ItemDao : updateStatus(itemId, RESERVED)
+ItemDao -> DB : UPDATE item SET status='RESERVED'
+DB --> ItemDao : ok
+
+TransSvc -> TransDao : insert(TransactionRecord)
+activate TransDao
+TransDao -> DB : INSERT INTO transaction_record
+DB --> TransDao : recordId
+deactivate TransDao
+
+TransSvc --> Trans : TransactionRecord(PENDING)
+deactivate TransSvc
+
+Trans -> Trans : 显示"已发起意向，等待对方确认"
+
+== 用户B确认并完成流转 ==
+UserB -> Trans : 看到待确认的流转记录
+UserB -> TransSvc : confirmTransaction(recordId)
+activate TransSvc
+TransSvc -> TransDao : updateStatus(recordId, CONFIRMED)
+TransDao -> DB : UPDATE ... SET status='CONFIRMED'
+DB --> TransDao : ok
+deactivate TransSvc
+
+UserB -> TransSvc : completeTransaction(recordId)
+activate TransSvc
+TransSvc -> ItemDao : updateStatus(itemId, SOLD)
+ItemDao -> DB : UPDATE item SET status='SOLD'
+
+TransSvc -> TransDao : updateStatus(recordId, COMPLETED)
+TransDao -> DB : UPDATE ... SET status='COMPLETED'\ncompleteTime=now()
+DB --> TransDao : ok
+
+TransSvc --> Trans : ok
+deactivate TransSvc
+
+Trans -> Trans : 双方都进入可评价状态
+
+@enduml
+
+' ============================================================
+' 时序图 3：双向评价与信用分更新流程
+' ============================================================
+@startuml 双向评价与信用分更新
+
+actor "用户A(评价方)" as Reviewer
+participant "ReviewPanel" as Panel
+participant "ReviewService" as Svc
+participant "ReviewDao" as ReviewDao
+participant "UserService" as UserSvc
+participant "UserDao" as UserDao
+database "SQLite" as DB
+
+== 用户A提交评价 ==
+Reviewer -> Panel : 进入评价界面
+Panel -> Svc : submitReview(recordId, reviewerId, rating, comment)
+activate Svc
+
+Svc -> Svc : 校验 rating 在 1-5 之间
+Svc -> ReviewDao : insert(Review)
+activate ReviewDao
+ReviewDao -> DB : INSERT INTO review
+DB --> ReviewDao : reviewId
+deactivate ReviewDao
+
+' 找被评价方（对方）并更新信用分
+Svc -> Svc : 确定被评价方 userId\n(从 transaction_record 获取对方)
+Svc -> UserSvc : updateCreditScore(targetUserId, delta)
+activate UserSvc
+
+UserSvc -> UserDao : updateCreditScore(userId, delta)
+activate UserDao
+UserDao -> DB : UPDATE user SET credit_score = credit_score + delta\nWHERE user_id = ?
+DB --> UserDao : ok
+deactivate UserDao
+deactivate UserSvc
+
+Svc --> Panel : Review(带 reviewId)
+deactivate Svc
+
+Panel -> Panel : 显示"评价已提交"
+
+== 用户B(对方)提交评价 ==
+note right
+  对方进入同样的流程
+  同样更新信用分
+end note
+
+@enduml

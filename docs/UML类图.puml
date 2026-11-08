@@ -1,0 +1,345 @@
+@startuml 低碳校园资源循环流转系统 - 类图
+
+title 低碳校园资源循环流转系统 — UML 类图
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+' ==================== 实体类 ====================
+class User <<entity>> {
+  - userId: long
+  - username: String
+  - passwordHash: String
+  - salt: String
+  - role: String  {USER | ADMIN}
+  - creditScore: int
+  - createTime: long
+  + getters/setters
+  + User()
+  + User(username, passwordHash, salt, role)
+}
+
+class Item <<entity>> {
+  - itemId: long
+  - publisherId: long (FK)
+  - name: String
+  - categoryId: long (FK)
+  - description: String
+  - price: double
+  - tradeType: String  {SELL | EXCHANGE}
+  - status: String  {ON_SALE | RESERVED | SOLD | OFF_SHELF}
+  - tags: String
+  - publishTime: long
+  + getters/setters
+  + Item()
+}
+
+class Category <<entity>> {
+  - categoryId: long
+  - name: String
+  - description: String
+  + getters/setters
+  + Category()
+}
+
+class TransactionRecord <<entity>> {
+  - recordId: long
+  - itemId: long (FK)
+  - initiatorId: long (FK)
+  - status: String  {PENDING | CONFIRMED | COMPLETED | CANCELLED}
+  - createTime: long
+  - completeTime: long
+  + getters/setters
+  + TransactionRecord()
+}
+
+class Review <<entity>> {
+  - reviewId: long
+  - recordId: long (FK)
+  - reviewerId: long (FK)
+  - rating: int  {1..5}
+  - comment: String
+  - createTime: long
+  + getters/setters
+  + Review()
+}
+
+' ==================== DAO 接口与实现 ====================
+interface UserDao <<interface>> {
+  + insert(user: User): long
+  + update(user: User): void
+  + delete(userId: long): void
+  + findById(userId: long): User
+  + findByUsername(username: String): User
+  + findAll(): List<User>
+  + updateCreditScore(userId: long, delta: int): void
+}
+
+class UserDaoImpl <<dao>> {
+  - connection: Connection (from DatabaseManager)
+  + insert(user: User): long
+  + update(user: User): void
+  + delete(userId: long): void
+  + findById(userId: long): User
+  + findByUsername(username: String): User
+  + findAll(): List<User>
+  + updateCreditScore(userId: long, delta: int): void
+}
+
+interface ItemDao <<interface>> {
+  + insert(item: Item): long
+  + update(item: Item): void
+  + delete(itemId: long): void
+  + findById(itemId: long): Item
+  + findByPublisher(publisherId: long): List<Item>
+  + findByCategory(categoryId: long): List<Item>
+  + search(keyword: String): List<Item>
+  + findAllActive(): List<Item>
+}
+
+class ItemDaoImpl <<dao>> {
+  + 所有接口方法实现
+}
+
+interface CategoryDao <<interface>> {
+  + insert(category: Category): long
+  + update(category: Category): void
+  + delete(categoryId: long): void
+  + findById(categoryId: long): Category
+  + findAll(): List<Category>
+}
+
+class CategoryDaoImpl <<dao>> {
+  + 所有接口方法实现
+}
+
+interface TransactionDao <<interface>> {
+  + insert(record: TransactionRecord): long
+  + update(record: TransactionRecord): void
+  + findById(recordId: long): TransactionRecord
+  + findByItem(itemId: long): List<TransactionRecord>
+  + findByUser(userId: long): List<TransactionRecord>
+  + findAll(): List<TransactionRecord>
+}
+
+class TransactionDaoImpl <<dao>> {
+  + 所有接口方法实现
+}
+
+interface ReviewDao <<interface>> {
+  + insert(review: Review): long
+  + findById(reviewId: long): Review
+  + findByRecord(recordId: long): List<Review>
+  + findByUser(userId: long): List<Review>
+  + findAll(): List<Review>
+}
+
+class ReviewDaoImpl <<dao>> {
+  + 所有接口方法实现
+}
+
+' ==================== Service 业务层 ====================
+class UserService <<service>> {
+  - userDao: UserDao
+  + register(username, password): User
+  + login(username, password): User
+  + changePassword(userId, oldPwd, newPwd): boolean
+  + getUserInfo(userId): User
+  + listAllUsers(): List<User>  [admin]
+  + updateUserStatus(userId, enabled): void  [admin]
+}
+
+class ItemService <<service>> {
+  - itemDao: ItemDao
+  - categoryDao: CategoryDao
+  + publishItem(userId, item): Item
+  + updateItem(userId, item): boolean
+  + shelveOffItem(userId, itemId): boolean
+  + getItemById(itemId): Item
+  + listActiveItems(): List<Item>
+  + searchByKeyword(keyword): List<Item>
+  + filterByCategory(categoryId): List<Item>
+  + filterByPriceRange(min, max): List<Item>
+  + listMyItems(userId): List<Item>
+  + forceShelveOff(itemId): void  [admin]
+}
+
+class TransactionService <<service>> {
+  - transactionDao: TransactionDao
+  - itemDao: ItemDao
+  + initiateTransaction(initiatorId, itemId): TransactionRecord
+  + confirmTransaction(recordId): boolean
+  + completeTransaction(recordId): boolean
+  + cancelTransaction(recordId): boolean
+  + getRecordById(recordId): TransactionRecord
+  + listByUser(userId): List<TransactionRecord>
+}
+
+class ReviewService <<service>> {
+  - reviewDao: ReviewDao
+  - userService: UserService
+  + submitReview(recordId, reviewerId, rating, comment): Review
+  + listByRecord(recordId): List<Review>
+  + listByUser(userId): List<Review>
+}
+
+class StatisticsService <<service>> {
+  - transactionDao: TransactionDao
+  - itemDao: ItemDao
+  + countByCategory(): Map<Long, Integer>
+  + countTotalTransactions(): int
+  + estimateCarbonSaved(): double
+  + generateCsvReport(filePath): void
+}
+
+class AdminService <<service>> {
+  - userService: UserService
+  - itemService: ItemService
+  - categoryDao: CategoryDao
+  - statisticsService: StatisticsService
+  + listAllUsers(): List<User>
+  + disableUser(userId): void
+  + enableUser(userId): void
+  + forceShelveOffItem(itemId): void
+  + addCategory(name, desc): Category
+  + updateCategory(category): void
+  + deleteCategory(categoryId): void
+  + getPlatformStatistics(): Map
+}
+
+' ==================== 工具与异常 ====================
+class PasswordUtil <<util>> {
+  + static generateSalt(): String
+  + static hash(password, salt): String
+  + static verify(password, hash, salt): boolean
+}
+
+class CsvExporter <<util>> {
+  + static export(filePath, headers, rows): void
+}
+
+class Validator <<util>> {
+  + static isValidUsername(name): boolean
+  + static isValidPassword(pwd): boolean
+  + static sanitize(input): String
+}
+
+class DatabaseManager <<singleton>> {
+  - instance: DatabaseManager (static)
+  - connection: Connection
+  + static getInstance(): DatabaseManager
+  + getConnection(): Connection
+  + closeConnection(): void
+}
+
+class BusinessException <<exception>> {
+  + BusinessException(message)
+  + BusinessException(message, cause)
+}
+
+class DaoException <<exception>> {
+  + DaoException(message)
+  + DaoException(message, cause)
+}
+
+' ==================== GUI 层 ====================
+class MainFrame <<gui>> {
+  - currentUser: User
+  + navigateTo(panel: JPanel): void
+  + logout(): void
+}
+
+class LoginPanel <<gui>> {
+  - usernameField: JTextField
+  - passwordField: JPasswordField
+  + show(mainFrame): void
+}
+
+class RegisterPanel <<gui>> {
+  + show(mainFrame): void
+}
+
+class ItemListPanel <<gui>> {
+  - itemTable: JTable
+  + refresh(): void
+}
+
+class ItemPublishPanel <<gui>> {
+  + show(mainFrame): void
+}
+
+class ItemManagePanel <<gui>> {
+  + refresh(): void
+}
+
+class TransactionPanel <<gui>> {
+  + refresh(): void
+}
+
+class ReviewPanel <<gui>> {
+  + show(mainFrame): void
+}
+
+class StatisticsPanel <<gui>> {
+  + refresh(): void
+}
+
+class AdminPanel <<gui>> {
+  + refresh(): void
+}
+
+' ==================== 关系 ====================
+
+' DAO 接口 - 实现
+UserDao <|.. UserDaoImpl
+ItemDao <|.. ItemDaoImpl
+CategoryDao <|.. CategoryDaoImpl
+TransactionDao <|.. TransactionDaoImpl
+ReviewDao <|.. ReviewDaoImpl
+
+' Service 依赖 DAO
+UserService --> UserDao
+ItemService --> ItemDao
+ItemService --> CategoryDao
+TransactionService --> TransactionDao
+TransactionService --> ItemDao
+ReviewService --> ReviewDao
+ReviewService --> UserService
+StatisticsService --> TransactionDao
+StatisticsService --> ItemDao
+AdminService --> UserService
+AdminService --> ItemService
+AdminService --> CategoryDao
+AdminService --> StatisticsService
+
+' 实体关联
+User "1" -- "0..*" Item : publishes
+User "1" -- "0..*" TransactionRecord : initiates
+User "1" -- "0..*" Review : writes
+Item "1" -- "0..*" TransactionRecord : involved
+Category "1" -- "0..*" Item : contains
+TransactionRecord "1" -- "0..2" Review : has
+
+' DAO 实现依赖 DatabaseManager
+UserDaoImpl --> DatabaseManager
+ItemDaoImpl --> DatabaseManager
+CategoryDaoImpl --> DatabaseManager
+TransactionDaoImpl --> DatabaseManager
+ReviewDaoImpl --> DatabaseManager
+
+' GUI 依赖 Service
+MainFrame *-- LoginPanel
+MainFrame *-- RegisterPanel
+MainFrame *-- ItemListPanel
+MainFrame *-- ItemPublishPanel
+MainFrame *-- ItemManagePanel
+MainFrame *-- TransactionPanel
+MainFrame *-- ReviewPanel
+MainFrame *-- StatisticsPanel
+MainFrame *-- AdminPanel
+
+' 工具类依赖
+PasswordUtil ..> BusinessException
+Validator ..> BusinessException
+
+@enduml
