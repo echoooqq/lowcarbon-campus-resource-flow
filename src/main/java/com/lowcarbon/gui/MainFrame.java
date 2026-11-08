@@ -9,6 +9,7 @@ import com.lowcarbon.gui.panel.LoginPanel;
 import com.lowcarbon.gui.panel.RegisterPanel;
 import com.lowcarbon.gui.panel.StatisticsPanel;
 import com.lowcarbon.gui.panel.TransactionPanel;
+import com.lowcarbon.gui.panel.AdminPanel;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -67,6 +68,9 @@ public class MainFrame extends JFrame {
     /** 内容区卡片名：统计报表。 */
     public static final String CONTENT_STATS = "STATS";
 
+    /** 内容区卡片名：管理员后台。 */
+    public static final String CONTENT_ADMIN = "ADMIN";
+
     private static final String WINDOW_TITLE = "低碳校园资源循环流转桌面系统 v1.0.0";
     private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 680;
@@ -94,6 +98,9 @@ public class MainFrame extends JFrame {
 
     /** 统计报表面板。 */
     private StatisticsPanel statsPanel;
+
+    /** 管理员后台面板（仅管理员角色构建）。 */
+    private AdminPanel adminPanel;
 
     /** 当前登录用户；未登录时为 {@code null}。 */
     private User currentUser;
@@ -239,6 +246,19 @@ public class MainFrame extends JFrame {
         statsPanel.refresh();
     }
 
+    /**
+     * 导航到管理员后台面板，并刷新数据。仅管理员角色可调用（UI 层已做角色隐藏，
+     * AdminService 内部会再次校验）。
+     */
+    public void showAdminPanel() {
+        if (contentLayout == null || adminPanel == null) {
+            return;
+        }
+        itemPublishPanel.exitEditMode();
+        contentLayout.show(contentPanel, CONTENT_ADMIN);
+        adminPanel.refresh();
+    }
+
     // ==================== 主界面外壳 ====================
 
     /**
@@ -295,6 +315,19 @@ public class MainFrame extends JFrame {
         navStats.addActionListener(e -> showStatisticsPanel());
         navPanel.add(navStats);
 
+        // 仅管理员显示管理员后台入口（UI 层角色感知，Service 层会二次校验）
+        if (user.isAdmin()) {
+            navPanel.add(Box.createVerticalStrut(8));
+            JLabel adminLabel = new JLabel("—— 管理端 ——");
+            adminLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            adminLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            adminLabel.setForeground(new java.awt.Color(120, 80, 200));
+            navPanel.add(adminLabel);
+            JButton navAdmin = createNavButton("管理员后台");
+            navAdmin.addActionListener(e -> showAdminPanel());
+            navPanel.add(navAdmin);
+        }
+
         navPanel.add(Box.createVerticalGlue());
         root.add(navPanel, BorderLayout.WEST);
 
@@ -316,6 +349,12 @@ public class MainFrame extends JFrame {
 
         statsPanel = new StatisticsPanel(this);
         contentPanel.add(statsPanel, CONTENT_STATS);
+
+        // 管理员面板仅在管理员登录时构建（减少普通用户的 UI 负担）
+        adminPanel = user.isAdmin() ? new AdminPanel(this) : null;
+        if (adminPanel != null) {
+            contentPanel.add(adminPanel, CONTENT_ADMIN);
+        }
 
         root.add(contentPanel, BorderLayout.CENTER);
 
