@@ -60,26 +60,62 @@ public final class DatabaseManager {
     /** JDBC URL 模板：SQLite 嵌入式数据库。 */
     private static final String JDBC_URL_TEMPLATE = "jdbc:sqlite:%s?foreign_keys=on";
 
+    /**
+     * 内存数据库 JDBC URL（测试用）。
+     * <p>
+     * 使用 {@code cache=shared} 让同名连接共享同一个内存数据库实例，
+     * 避免 SQLite 默认 {@code :memory:} 每次 {@code getConnection()} 都是独立空库的陷阱。
+     */
+    private static final String JDBC_IN_MEMORY_URL =
+            "jdbc:sqlite:file:lowcarbon_memory_shared?mode=memory&cache=shared&foreign_keys=on";
+
     /** 系统属性名，用于覆盖数据库文件路径。 */
     private static final String DB_PATH_PROPERTY = "lowcarbon.db.path";
 
+    /** 系统属性值：使用 SQLite 内存数据库（仅用于单元测试）。 */
+    private static final String IN_MEMORY_PATH = ":memory:";
+
+    /** 测试专用数据库文件名（单元测试用，每次启动自动删掉重建）。 */
+    private static final String TEST_DB_FILE = "lowcarbon_unit_test.db";
+
     // ==================== 单例 ====================
+
+    /** 静态加载 SQLite JDBC 驱动（兼容 Java 21+ 模块系统）。 */
+    static {
+        try {
+            Class.forName("org.sqlite.JDBC");
+            LOGGER.info("SQLite JDBC 驱动加载成功");
+        } catch (ClassNotFoundException e) {
+            LOGGER.log(Level.SEVERE, "SQLite JDBC 驱动未找到！请确认 sqlite-jdbc 已在 classpath。", e);
+            throw new DaoException("SQLite JDBC 驱动未找到", e);
+        }
+    }
 
     /** 懒加载单例（DCL）。 */
     private static volatile DatabaseManager instance;
 
-    /** 数据库文件绝对路径。 */
+    /** 数据库文件绝对路径（内存模式下此值仅用于日志/定位 schema.sql）。 */
     private final Path dbPath;
 
     /** JDBC URL（缓存，不包含运行时参数）。 */
     private final String jdbcUrl;
 
+    /** 是否为内存数据库模式。 */
+    private final boolean memoryMode;
+
     /**
      * 私有构造器：计算数据库路径 + 自动初始化。
      */
     private DatabaseManager() {
+        // 先判断是否内存模式，再决定后续路径和 JDBC URL
+        String override = System.getProperty(DB_PATH_PROPERTY);
+        this.memoryMode = override != null
+                && IN_MEMORY_PATH.equalsIgnoreCase(override.trim());
+
         this.dbPath = resolveDbPath();
-        this.jdbcUrl = String.format(JDBC_URL_TEMPLATE, dbPath.toAbsolutePath().toString());
+        this.jdbcUrl = memoryMode
+                ? JDBC_IN_MEMORY_URL
+                : String.format(JDBC_URL_TEMPLATE, dbPath.toAbsolutePath().toString());
         initializeDatabase();
     }
 
@@ -109,10 +145,18 @@ public final class DatabaseManager {
      *   <li>系统属性 {@code lowcarbon.db.path}</li>
      *   <li>当前工作目录下的 {@code lowcarbon.db}</li>
      * </ol>
+     * <p>
+     * 注意：若系统属性为 {@code :memory:}，JDBC URL 会使用 SQLite 内存模式，
+     * 但此处仍返回文件路径（用于定位 schema.sql 脚本和日志输出）。
      *
      * @return 数据库文件 Path
      */
     private Path resolveDbPath() {
+        if (memoryMode) {
+            LOGGER.info("使用 SQLite 内存数据库（测试模式）");
+            // 内存模式下 dbPath 仅用于定位 schema.sql，返回默认文件路径即可
+            return Paths.get(DEFAULT_DB_FILE);
+        }
         String override = System.getProperty(DB_PATH_PROPERTY);
         if (override != null && !override.isBlank()) {
             Path p = Paths.get(override);
@@ -130,6 +174,17 @@ public final class DatabaseManager {
      * 程序启动时自动执行：若数据库文件不存在或表不全，则执行 schema.sql。
      */
     private void initializeDatabase() {
+        // 测试临时文件：每次启动自动删掉重建，确保测试间数据隔离
+        String fileName = dbPath.getFileName() != null ? dbPath.getFileName().toString() : "";
+        if (TEST_DB_FILE.equals(fileName) && Files.exists(dbPath)) {
+            try {
+                Files.delete(dbPath);
+                LOGGER.info("测试模式：已清理旧的临时数据库文件");
+            } catch (IOException e) {
+                LOGGER.warning("清理测试临时数据库失败: " + e.getMessage());
+            }
+        }
+
         // 确保父目录存在（相对路径时父目录即当前目录，无需处理；绝对路径时需创建）
         Path parent = dbPath.toAbsolutePath().getParent();
         if (parent != null && !Files.exists(parent)) {
@@ -260,6 +315,39 @@ public final class DatabaseManager {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "获取数据库连接失败", e);
             throw new DaoException("获取数据库连接失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 清空所有表并恢复 schema.sql 预置数据，用于单元测试隔离。
+     * <p>
+     * 外键检查会被临时关闭以允许任意顺序的 DELETE。
+     */
+    public static void resetForTest() {
+        try (Connection conn = DatabaseManager.getInstance().getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = OFF");
+            // 按外键依赖顺序清空
+            stmt.execute("DELETE FROM review");
+            stmt.execute("DELETE FROM transaction_record");
+            stmt.execute("DELETE FROM item");
+            stmt.execute("DELETE FROM user");
+            stmt.execute("DELETE FROM category");
+            // 重置自增序列（SQLite AUTOINCREMENT 依赖 sqlite_sequence 表）
+            stmt.execute("DELETE FROM sqlite_sequence WHERE name IN "
+                    + "('review','transaction_record','item','user','category')");
+            stmt.execute("PRAGMA foreign_keys = ON");
+
+            // 重新插入 schema.sql 预置的 4 个分类
+            stmt.execute("INSERT INTO category (name, description) VALUES ('教材', '各类课程教材、参考书籍')");
+            stmt.execute("INSERT INTO category (name, description) VALUES ('数码配件', '耳机、充电器、U盘、键盘鼠标等')");
+            stmt.execute("INSERT INTO category (name, description) VALUES ('文体用品', '运动器材、乐器、画材等')");
+            stmt.execute("INSERT INTO category (name, description) VALUES ('生活物资', '收纳用品、小家电、床上用品等')");
+
+            LOGGER.info("resetForTest 完成：所有表已清空并重置序列，预置分类已恢复");
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "resetForTest 失败", e);
+            throw new DaoException("重置测试数据库失败: " + e.getMessage(), e);
         }
     }
 
