@@ -14,7 +14,11 @@ import com.lowcarbon.entity.User;
 import com.lowcarbon.exception.BusinessException;
 import com.lowcarbon.exception.DaoException;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -251,15 +255,32 @@ public class TransactionService {
     /**
      * 某人相关的所有流转（发起的 + 作为卖家的）。
      * <p>
-     * 返回 list 中每条记录附带 operatorSide 信息由调用方自行判断。
+     * 返回的每条记录都附带角色标签，由调用方自行判断。
      */
     public List<Transaction> listByUser(Long userId) {
         if (userId == null) return List.of();
+        // 买家视角
+        List<Transaction> buyerList;
+        // 卖家视角：该用户发布的所有物品相关的流转
+        List<Transaction> sellerList = new ArrayList<>();
         try {
-            return transactionDao.findByInitiatorId(userId);
+            buyerList = transactionDao.findByInitiatorId(userId);
+            // 卖家视角：先查该用户发布的 item，再查每件 item 的流转
+            List<Long> sellerItemIds = itemDao.findByPublisherId(userId)
+                    .stream().map(Item::getItemId).toList();
+            for (Long itemId : sellerItemIds) {
+                sellerList.addAll(transactionDao.findByItemId(itemId));
+            }
         } catch (DaoException e) {
             throw new BusinessException("查询流转记录失败", e);
         }
+        // 合并并按 createTime 倒序；recordId 去重（某条记录可能重复出现在 buyer 和 seller）
+        Map<Long, Transaction> merged = new HashMap<>();
+        for (Transaction tx : buyerList) merged.put(tx.getRecordId(), tx);
+        for (Transaction tx : sellerList) merged.putIfAbsent(tx.getRecordId(), tx);
+        return merged.values().stream()
+                .sorted(Comparator.comparingLong(Transaction::getCreateTime).reversed())
+                .toList();
     }
 
     /** 按物品查流转历史。 */

@@ -7,6 +7,7 @@ import com.lowcarbon.gui.panel.ItemManagePanel;
 import com.lowcarbon.gui.panel.ItemPublishPanel;
 import com.lowcarbon.gui.panel.LoginPanel;
 import com.lowcarbon.gui.panel.RegisterPanel;
+import com.lowcarbon.gui.panel.TransactionPanel;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -59,6 +60,9 @@ public class MainFrame extends JFrame {
     /** 内容区卡片名：我发布的物品管理。 */
     public static final String CONTENT_ITEM_MANAGE = "ITEM_MANAGE";
 
+    /** 内容区卡片名：流转记录。 */
+    public static final String CONTENT_TX = "TX";
+
     private static final String WINDOW_TITLE = "低碳校园资源循环流转桌面系统 v1.0.0";
     private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 680;
@@ -80,6 +84,9 @@ public class MainFrame extends JFrame {
 
     /** 我发布的物品管理面板。 */
     private ItemManagePanel itemManagePanel;
+
+    /** 流转记录面板。 */
+    private TransactionPanel txPanel;
 
     /** 当前登录用户；未登录时为 {@code null}。 */
     private User currentUser;
@@ -201,6 +208,18 @@ public class MainFrame extends JFrame {
         itemManagePanel.refresh();
     }
 
+    /**
+     * 导航到流转记录面板，并刷新列表。
+     */
+    public void showTransactionPanel() {
+        if (contentLayout == null || txPanel == null) {
+            return;
+        }
+        itemPublishPanel.exitEditMode();
+        contentLayout.show(contentPanel, CONTENT_TX);
+        txPanel.refresh();
+    }
+
     // ==================== 主界面外壳 ====================
 
     /**
@@ -249,6 +268,10 @@ public class MainFrame extends JFrame {
         navItemManage.addActionListener(e -> showItemManage());
         navPanel.add(navItemManage);
 
+        JButton navTx = createNavButton("流转记录");
+        navTx.addActionListener(e -> showTransactionPanel());
+        navPanel.add(navTx);
+
         navPanel.add(Box.createVerticalGlue());
         root.add(navPanel, BorderLayout.WEST);
 
@@ -264,6 +287,9 @@ public class MainFrame extends JFrame {
 
         itemManagePanel = new ItemManagePanel(this);
         contentPanel.add(itemManagePanel, CONTENT_ITEM_MANAGE);
+
+        txPanel = new TransactionPanel(this);
+        contentPanel.add(txPanel, CONTENT_TX);
 
         root.add(contentPanel, BorderLayout.CENTER);
 
