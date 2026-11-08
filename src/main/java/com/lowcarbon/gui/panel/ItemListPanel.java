@@ -282,7 +282,7 @@ public class ItemListPanel extends JPanel {
                     resolveCategoryName(item.getCategoryId()),
                     String.format("%.2f", item.getPrice()),
                     tradeTypeLabel(item.getTradeType()),
-                    statusLabel(item.getStatus()),
+                    item.getStatus().getLabel(),
                     publisher == null ? "未知" : publisher.getUsername(),
                     publisher == null ? "-" : publisher.getCreditScore(),
                     item.getTagsStr() == null ? "" : item.getTagsStr(),
@@ -332,7 +332,7 @@ public class ItemListPanel extends JPanel {
                 + "分　　类：" + resolveCategoryName(item.getCategoryId()) + "\n"
                 + "价　　格：" + String.format("%.2f", item.getPrice()) + " 元\n"
                 + "交易类型：" + tradeTypeLabel(item.getTradeType()) + "\n"
-                + "状　　态：" + statusLabel(item.getStatus()) + "\n"
+                + "状　　态：" + item.getStatus().getLabel() + "\n"
                 + "标　　签：" + (item.getTagsStr() == null ? "无" : item.getTagsStr()) + "\n"
                 + "发布时间：" + sdf.format(new Date(item.getPublishTime())) + "\n"
                 + "------------------------------\n"
@@ -406,18 +406,4 @@ public class ItemListPanel extends JPanel {
         };
     }
 
-    /**
-     * 物品状态中文标签。
-     */
-    private static String statusLabel(ItemStatus status) {
-        if (status == null) {
-            return "未知";
-        }
-        return switch (status) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
-    }
 }

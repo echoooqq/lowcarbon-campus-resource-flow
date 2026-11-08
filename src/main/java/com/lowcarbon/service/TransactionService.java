@@ -110,7 +110,7 @@ public class TransactionService {
             throw new BusinessException("物品不存在");
         }
         if (item.getStatus() != ItemStatus.ON_SALE) {
-            throw new BusinessException("物品当前状态为\"" + itemStatusLabel(item.getStatus())
+            throw new BusinessException("物品当前状态为\"" + item.getStatus().getLabel()
                     + "\"，不可发起意向");
         }
 
@@ -187,7 +187,7 @@ public class TransactionService {
         Transaction tx = getOrThrow(recordId);
         if (tx.getStatus() != TransactionStatus.APPROVED) {
             throw new BusinessException("只有\"已同意\"状态的流转可以标记完成，当前为："
-                    + txStatusLabel(tx.getStatus()));
+                    + tx.getStatus().getLabel());
         }
         // 操作者必须是卖家或买家
         if (!isInvolved(tx, operatorId)) {
@@ -222,7 +222,7 @@ public class TransactionService {
             throw new BusinessException("只有交易双方可以取消");
         }
         if (!tx.isActive()) {
-            throw new BusinessException("流转已结束（" + txStatusLabel(tx.getStatus())
+            throw new BusinessException("流转已结束（" + tx.getStatus().getLabel()
                     + "），无法取消");
         }
 
@@ -340,8 +340,8 @@ public class TransactionService {
         }
 
         if (tx.getStatus() != from) {
-            throw new BusinessException("当前状态为\"" + txStatusLabel(tx.getStatus())
-                    + "\"，无法执行\"" + txStatusLabel(to) + "\"");
+            throw new BusinessException("当前状态为\"" + tx.getStatus().getLabel()
+                    + "\"，无法执行\"" + to.getLabel() + "\"");
         }
 
         try {
@@ -383,26 +383,5 @@ public class TransactionService {
         } catch (DaoException e) {
             throw new BusinessException("查询流转记录失败", e);
         }
-    }
-
-    private static String txStatusLabel(TransactionStatus s) {
-        if (s == null) return "未知";
-        return switch (s) {
-            case PENDING   -> "待卖家确认";
-            case APPROVED  -> "已同意";
-            case REJECTED  -> "已拒绝";
-            case COMPLETED -> "已完成";
-            case CANCELLED -> "已取消";
-        };
-    }
-
-    private static String itemStatusLabel(ItemStatus s) {
-        if (s == null) return "未知";
-        return switch (s) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
     }
 }

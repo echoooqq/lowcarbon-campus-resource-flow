@@ -157,7 +157,7 @@ public class ItemManagePanel extends JPanel {
                     resolveCategoryName(item.getCategoryId()),
                     String.format("%.2f", item.getPrice()),
                     tradeTypeLabel(item.getTradeType()),
-                    statusLabel(item.getStatus()),
+                    item.getStatus().getLabel(),
                     item.getTagsStr() == null ? "" : item.getTagsStr(),
                     sdf.format(new Date(item.getPublishTime()))
             });
@@ -239,7 +239,7 @@ public class ItemManagePanel extends JPanel {
         // UI 快速校验：仅在售物品允许下架（Service 会再次校验）
         if (item.getStatus() != ItemStatus.ON_SALE) {
             JOptionPane.showMessageDialog(this,
-                    "当前状态不允许下架：" + statusLabel(item.getStatus()),
+                    "当前状态不允许下架：" + item.getStatus().getLabel(),
                     "无法下架", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -306,13 +306,4 @@ public class ItemManagePanel extends JPanel {
         };
     }
 
-    private static String statusLabel(ItemStatus status) {
-        if (status == null) return "未知";
-        return switch (status) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
-    }
 }

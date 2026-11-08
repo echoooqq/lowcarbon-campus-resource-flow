@@ -253,7 +253,7 @@ public class StatisticsServiceTest {
     @Test
     public void testTransactionStatusDistribution() {
         Map<String, Long> dist = service.transactionStatusDistribution();
-        assertEquals(1L, dist.get("待确认").longValue());
+        assertEquals(1L, dist.get("待卖家确认").longValue());
         assertEquals(0L, dist.get("已同意").longValue());
         assertEquals(0L, dist.get("已拒绝").longValue());
         assertEquals(4L, dist.get("已完成").longValue());

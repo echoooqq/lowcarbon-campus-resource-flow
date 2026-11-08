@@ -119,7 +119,7 @@ public class ReviewService {
             throw new BusinessException("流转记录不存在");
         }
         if (tx.getStatus() != TransactionStatus.COMPLETED) {
-            throw new BusinessException("只有\"已完成\"的流转可以评价，当前为：" + txStatusLabel(tx.getStatus()));
+            throw new BusinessException("只有\"已完成\"的流转可以评价，当前为：" + tx.getStatus().getLabel());
         }
 
         // 5. 评价人必须是交易双方之一
@@ -253,14 +253,4 @@ public class ReviewService {
 
     // ==================== 辅助 ====================
 
-    private static String txStatusLabel(TransactionStatus s) {
-        if (s == null) return "未知";
-        return switch (s) {
-            case PENDING   -> "待卖家确认";
-            case APPROVED  -> "已同意";
-            case REJECTED  -> "已拒绝";
-            case COMPLETED -> "已完成";
-            case CANCELLED -> "已取消";
-        };
-    }
 }

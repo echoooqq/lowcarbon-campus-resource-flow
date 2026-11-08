@@ -280,7 +280,7 @@ public class AdminPanel extends JPanel {
                     it.getTradeType() == null ? "" : switch (it.getTradeType()) {
                         case SELL -> "出售"; case DONATE -> "捐赠"; case BORROW -> "借用";
                     },
-                    itemStatusLabel(it.getStatus()),
+                    it.getStatus().getLabel(),
                     it.getPublisherId(),
                     sdf.format(new java.util.Date(it.getPublishTime()))
             });
@@ -503,7 +503,7 @@ public class AdminPanel extends JPanel {
         if (sel == null) return;
         if (sel.getStatus() != ItemStatus.OFF_SHELF) {
             JOptionPane.showMessageDialog(this,
-                    "只有已下架物品可以重新上架，当前状态：" + itemStatusLabel(sel.getStatus()),
+                    "只有已下架物品可以重新上架，当前状态：" + sel.getStatus().getLabel(),
                     "无法上架", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -586,13 +586,4 @@ public class AdminPanel extends JPanel {
         }
     }
 
-    /** AdminService.itemStatusLabel 包可见不可直接调用，本地同实现一份。 */
-    private static String itemStatusLabel(ItemStatus s) {
-        return switch (s) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
-    }
 }

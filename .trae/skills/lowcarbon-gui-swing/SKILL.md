@@ -109,6 +109,7 @@ $env:JAVA_HOME = "d:\软件构造\tools\jdk-21"
 | **Panel 之间直接通信** | MainFrame 导航断掉某面板依赖 | 面板之间零直接引用，全部通过 MainFrame 的公共导航方法交互 |
 | **GUI 层做业务规则校验** | Service 层重复校验，规则分散 | 事件层只做参数格式校验，业务规则（状态流转、发布者归属、密码策略）一律下沉 Service |
 | **JDBC 在 EDT 线程同步调用** | 表格卡顿、Swing 无响应 | 所有 Service 调用包进 `SwingWorker.doInBackground()` |
+| **方法声明返回类型与实际 `return` 值类型不一致** | `javac 类型不兼容: JScrollPane 无法转换为 JPanel` | 构建 `new JScrollPane(root)` 包裹面板后返回值就是 JScrollPane，方法签名必须同步声明为 `private JScrollPane xxxTab()`，不能还是 `JPanel`；同理其他 Swing 包装组件 |
 
 ## 项目特定约定速查
 

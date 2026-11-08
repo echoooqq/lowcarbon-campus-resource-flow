@@ -264,7 +264,7 @@ public class ItemService implements ItemStatusSubject {
             throw new BusinessException("只能下架自己发布的物品");
         }
         if (item.getStatus() != ItemStatus.ON_SALE) {
-            throw new BusinessException("当前状态不允许下架：" + statusLabel(item.getStatus()));
+            throw new BusinessException("当前状态不允许下架：" + item.getStatus().getLabel());
         }
 
         try {
@@ -343,7 +343,7 @@ public class ItemService implements ItemStatusSubject {
             LOGGER.log(Level.WARNING, "非法状态流转: itemId={0}, {1} → {2}",
                     new Object[]{itemId, oldStatus, newStatus});
             throw new BusinessException("非法的状态流转："
-                    + statusLabel(oldStatus) + " → " + statusLabel(newStatus));
+                    + oldStatus.getLabel() + " → " + newStatus.getLabel());
         }
 
         try {
@@ -536,18 +536,6 @@ public class ItemService implements ItemStatusSubject {
             case RESERVED -> to == ItemStatus.SOLD || to == ItemStatus.ON_SALE || to == ItemStatus.OFF_SHELF;
             case SOLD     -> false; // 终态
             case OFF_SHELF -> false; // 终态（后续如需"重新上架"再开放）
-        };
-    }
-
-    /**
-     * 状态标签（用于日志和错误提示）。
-     */
-    private static String statusLabel(ItemStatus s) {
-        return s == null ? "未知" : switch (s) {
-            case ON_SALE  -> "在售";
-            case RESERVED -> "已预订";
-            case SOLD     -> "已成交";
-            case OFF_SHELF -> "已下架";
         };
     }
 

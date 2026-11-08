@@ -275,7 +275,7 @@ public class AdminService {
         Item item = itemOrThrow(itemId);
         if (item.getStatus() != ItemStatus.OFF_SHELF) {
             throw new BusinessException("只有已下架物品可以重新上架，当前状态："
-                    + AdminService.itemStatusLabel(item.getStatus()));
+                    + item.getStatus().getLabel());
         }
         try {
             itemDao.updateStatus(itemId, ItemStatus.ON_SALE);
@@ -343,14 +343,5 @@ public class AdminService {
             sb.append(TEMP_CHARS[rnd.nextInt(TEMP_CHARS.length)]);
         }
         return sb.toString();
-    }
-
-    static String itemStatusLabel(ItemStatus s) {
-        return switch (s) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
     }
 }

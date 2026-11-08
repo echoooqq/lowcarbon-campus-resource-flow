@@ -177,7 +177,7 @@ public class StatisticsService {
                 .collect(Collectors.groupingBy(Item::getStatus, Collectors.counting()));
         // 固定顺序输出，防止 Enum.values() 顺序被破坏
         for (ItemStatus s : ItemStatus.values()) {
-            result.put(itemStatusLabel(s), grouped.getOrDefault(s, 0L));
+            result.put(s.getLabel(), grouped.getOrDefault(s, 0L));
         }
         return result;
     }
@@ -190,7 +190,7 @@ public class StatisticsService {
 
         Map<String, Long> result = new LinkedHashMap<>();
         for (TransactionStatus s : TransactionStatus.values()) {
-            result.put(txStatusLabel(s), grouped.getOrDefault(s, 0L));
+            result.put(s.getLabel(), grouped.getOrDefault(s, 0L));
         }
         return result;
     }
@@ -405,25 +405,6 @@ public class StatisticsService {
 
     private static double round2(double v) {
         return Math.round(v * 100.0) / 100.0;
-    }
-
-    private static String itemStatusLabel(ItemStatus s) {
-        return switch (s) {
-            case ON_SALE   -> "在售";
-            case RESERVED  -> "已预订";
-            case SOLD      -> "已成交";
-            case OFF_SHELF -> "已下架";
-        };
-    }
-
-    private static String txStatusLabel(TransactionStatus s) {
-        return switch (s) {
-            case PENDING   -> "待确认";
-            case APPROVED  -> "已同意";
-            case REJECTED  -> "已拒绝";
-            case COMPLETED -> "已完成";
-            case CANCELLED -> "已取消";
-        };
     }
 
     // ==================== DAO 调用（统一 catch + 转 BusinessException） ====================

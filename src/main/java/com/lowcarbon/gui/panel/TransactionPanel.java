@@ -240,7 +240,7 @@ public class TransactionPanel extends JPanel {
                     item == null ? "(物品已不存在)" : item.getName(),
                     roleText,
                     other == null ? "未知" : other.getUsername(),
-                    txStatusLabel(tx.getStatus()),
+                    tx.getStatus().getLabel(),
                     tx.getRemark() == null ? "" : tx.getRemark(),
                     sdf.format(new java.util.Date(tx.getCreateTime())),
                     tx.getCompleteTime() == null ? ""
@@ -501,7 +501,7 @@ public class TransactionPanel extends JPanel {
         sb.append("记录编号：").append(tx.getRecordId()).append("\n");
         sb.append("物品：").append(item == null ? "(已不存在)" : item.getName()).append("\n");
         sb.append("我的角色：").append(isBuyer ? "买家" : (sellerId != null && me.getUserId().equals(sellerId) ? "卖家" : "-")).append("\n");
-        sb.append("状态：").append(txStatusLabel(tx.getStatus())).append("\n");
+        sb.append("状态：").append(tx.getStatus().getLabel()).append("\n");
         sb.append("发起时间：").append(sdf.format(new java.util.Date(tx.getCreateTime()))).append("\n");
         sb.append("完成时间：").append(tx.getCompleteTime() == null ? "(未完成)" : sdf.format(new java.util.Date(tx.getCompleteTime()))).append("\n");
         sb.append("备注：").append(tx.getRemark() == null ? "(无)" : tx.getRemark()).append("\n");
@@ -547,14 +547,4 @@ public class TransactionPanel extends JPanel {
         }
     }
 
-    private static String txStatusLabel(TransactionStatus s) {
-        if (s == null) return "未知";
-        return switch (s) {
-            case PENDING   -> "待卖家确认";
-            case APPROVED  -> "已同意";
-            case REJECTED  -> "已拒绝";
-            case COMPLETED -> "已完成";
-            case CANCELLED -> "已取消";
-        };
-    }
 }
