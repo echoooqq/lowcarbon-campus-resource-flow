@@ -1,7 +1,10 @@
 package com.lowcarbon.gui;
 
+import com.lowcarbon.entity.Item;
 import com.lowcarbon.entity.User;
 import com.lowcarbon.gui.panel.ItemListPanel;
+import com.lowcarbon.gui.panel.ItemManagePanel;
+import com.lowcarbon.gui.panel.ItemPublishPanel;
 import com.lowcarbon.gui.panel.LoginPanel;
 import com.lowcarbon.gui.panel.RegisterPanel;
 
@@ -50,6 +53,12 @@ public class MainFrame extends JFrame {
     /** 内容区卡片名：物品浏览大厅。 */
     public static final String CONTENT_ITEM_LIST = "ITEM_LIST";
 
+    /** 内容区卡片名：物品发布 / 编辑。 */
+    public static final String CONTENT_ITEM_PUBLISH = "ITEM_PUBLISH";
+
+    /** 内容区卡片名：我发布的物品管理。 */
+    public static final String CONTENT_ITEM_MANAGE = "ITEM_MANAGE";
+
     private static final String WINDOW_TITLE = "低碳校园资源循环流转桌面系统 v1.0.0";
     private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 680;
@@ -63,8 +72,14 @@ public class MainFrame extends JFrame {
     /** 主界面内容区面板。 */
     private JPanel contentPanel;
 
-    /** 物品浏览面板（导航到此面板时调用 {@link ItemListPanel#refresh()} 刷新数据）。 */
+    /** 物品浏览面板。 */
     private ItemListPanel itemListPanel;
+
+    /** 物品发布 / 编辑面板。 */
+    private ItemPublishPanel itemPublishPanel;
+
+    /** 我发布的物品管理面板。 */
+    private ItemManagePanel itemManagePanel;
 
     /** 当前登录用户；未登录时为 {@code null}。 */
     private User currentUser;
@@ -143,10 +158,47 @@ public class MainFrame extends JFrame {
      */
     public void showItemList() {
         if (contentLayout == null || itemListPanel == null) {
-            return; // 尚未登录，主界面未构建
+            return;
         }
+        itemPublishPanel.exitEditMode(); // 离开发布面板时放弃编辑中的未保存状态
         contentLayout.show(contentPanel, CONTENT_ITEM_LIST);
         itemListPanel.refresh();
+    }
+
+    /**
+     * 导航到物品发布表单（新建模式）。
+     */
+    public void showItemPublish() {
+        if (contentLayout == null || itemPublishPanel == null) {
+            return;
+        }
+        itemPublishPanel.exitEditMode();
+        contentLayout.show(contentPanel, CONTENT_ITEM_PUBLISH);
+    }
+
+    /**
+     * 导航到物品发布面板并进入编辑模式（编辑已有物品）。
+     *
+     * @param item 待编辑物品
+     */
+    public void showItemPublishForEdit(Item item) {
+        if (contentLayout == null || itemPublishPanel == null) {
+            return;
+        }
+        contentLayout.show(contentPanel, CONTENT_ITEM_PUBLISH);
+        itemPublishPanel.editItem(item);
+    }
+
+    /**
+     * 导航到"我发布的物品"管理面板，并刷新列表。
+     */
+    public void showItemManage() {
+        if (contentLayout == null || itemManagePanel == null) {
+            return;
+        }
+        itemPublishPanel.exitEditMode();
+        contentLayout.show(contentPanel, CONTENT_ITEM_MANAGE);
+        itemManagePanel.refresh();
     }
 
     // ==================== 主界面外壳 ====================
@@ -154,7 +206,7 @@ public class MainFrame extends JFrame {
     /**
      * 构建登录后的主界面外壳：顶栏 + 侧边导航 + 内容区（CardLayout）。
      * <p>
-     * 内容区面板按任务逐步接入：T4-2 物品大厅（本任务），T4-3 ~ T4-6 后续接入。
+     * 内容区面板按任务逐步接入：T4-2 物品大厅，T4-3 发布 + 我的管理，T4-4 ~ T4-6 后续接入。
      *
      * @param user 当前登录用户
      * @return 主界面外壳面板
@@ -184,17 +236,35 @@ public class MainFrame extends JFrame {
         navPanel.setLayout(new BoxLayout(navPanel, BoxLayout.Y_AXIS));
         navPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         navPanel.setPreferredSize(new Dimension(130, 0));
+
         JButton navItemList = createNavButton("物品大厅");
         navItemList.addActionListener(e -> showItemList());
         navPanel.add(navItemList);
+
+        JButton navItemPublish = createNavButton("发布物品");
+        navItemPublish.addActionListener(e -> showItemPublish());
+        navPanel.add(navItemPublish);
+
+        JButton navItemManage = createNavButton("我的物品");
+        navItemManage.addActionListener(e -> showItemManage());
+        navPanel.add(navItemManage);
+
         navPanel.add(Box.createVerticalGlue());
         root.add(navPanel, BorderLayout.WEST);
 
         // ---------- 内容区 ----------
         contentLayout = new CardLayout();
         contentPanel = new JPanel(contentLayout);
+
         itemListPanel = new ItemListPanel(this);
         contentPanel.add(itemListPanel, CONTENT_ITEM_LIST);
+
+        itemPublishPanel = new ItemPublishPanel(this);
+        contentPanel.add(itemPublishPanel, CONTENT_ITEM_PUBLISH);
+
+        itemManagePanel = new ItemManagePanel(this);
+        contentPanel.add(itemManagePanel, CONTENT_ITEM_MANAGE);
+
         root.add(contentPanel, BorderLayout.CENTER);
 
         return root;
