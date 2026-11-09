@@ -1,100 +1,73 @@
 @echo off
-REM ======================================================================
-REM 低碳校园资源循环流转桌面系统 - Windows 启动 / 构建脚本
-REM 使用项目 tools/ 下自带的 JDK 21 和 Maven，不依赖系统全局环境
-REM ======================================================================
+chcp 65001 >nul 2>&1
+cd /d "%~dp0"
 
-setlocal
+echo ============================================
+echo   LowCarbon Campus System
+echo ============================================
+echo.
 
-REM --- 定位项目根目录 ---
-set "PROJECT_ROOT=%~dp0"
-cd /d "%PROJECT_ROOT%"
+REM find jar dir
+set "DIST_DIR=%~dp0target\dist"
+if exist "lowcarbon-system.jar" set "DIST_DIR=%~dp0"
 
-REM --- 设置 JDK 21 ---
-set "JAVA_HOME=%PROJECT_ROOT%tools\jdk-21"
-if not exist "%JAVA_HOME%\bin\java.exe" (
-    echo [ERROR] 未找到 JDK 21: %JAVA_HOME%\bin\java.exe
-    echo         请先运行 install-tools.bat 或手动解压 tools 下的 JDK zip
+if not exist "%DIST_DIR%\lowcarbon-system.jar" (
+    echo [ERROR] lowcarbon-system.jar not found in root or target\dist\
+    echo         Check GitHub Releases or run target\dist\run.bat
     pause
     exit /b 1
 )
-set "PATH=%JAVA_HOME%\bin;%PATH%"
 
-REM --- 设置 Maven ---
-set "MAVEN_HOME=%PROJECT_ROOT%tools\maven-3.9.16"
-if not exist "%MAVEN_HOME%\bin\mvn.cmd" (
-    echo [ERROR] 未找到 Maven: %MAVEN_HOME%\bin\mvn.cmd
-    echo         请先运行 install-tools.bat 或手动解压 tools 下的 Maven zip
+REM find java
+set "JAVA_CMD="
+
+REM 1) BellSoft JDK 21 (hardcoded, no-spaces via 8.3 short path)
+if exist "C:\Progra~1\BellSoft\Liberic~1\bin\java.exe" set "JAVA_CMD=C:\Progra~1\BellSoft\Liberic~1\bin\java.exe"
+if not defined JAVA_CMD (
+    for /d %%d in ("C:\Progra~1\BellSoft\*") do (
+        if exist "%%d\bin\java.exe" if not defined JAVA_CMD set "JAVA_CMD=%%d\bin\java.exe"
+    )
+)
+
+REM 2) JAVA_HOME (but filter out old Java 8)
+if not defined JAVA_CMD if not "%JAVA_HOME%"=="" (
+    if exist "%JAVA_HOME%\bin\java.exe" (
+        for /f "tokens=3" %%v in ('"%JAVA_HOME%\bin\java.exe" -version 2^>^&1 ^| findstr version') do (
+            echo %%v | findstr /r "1\.[89]\." >nul 2>&1
+            if errorlevel 1 set "JAVA_CMD=%JAVA_HOME%\bin\java.exe"
+        )
+    )
+)
+
+REM 3) where java (same filter)
+if not defined JAVA_CMD (
+    where java >nul 2>&1
+    if not errorlevel 1 for /f "delims=" %%j in ('where java') do (
+        if not defined JAVA_CMD (
+            for /f "tokens=3" %%v in ('"%%j" -version 2^>^&1 ^| findstr version') do (
+                echo %%v | findstr /r "1\.[89]\." >nul 2>&1
+                if errorlevel 1 set "JAVA_CMD=%%j"
+            )
+        )
+    )
+)
+
+if not defined JAVA_CMD (
+    echo [ERROR] No Java 21+. Install from https://adoptium.net/
     pause
     exit /b 1
 )
-set "PATH=%MAVEN_HOME%\bin;%PATH%"
 
-REM --- 打印环境 ---
-echo ========================================
-echo   低碳校园资源循环流转桌面系统
-echo ========================================
-echo JAVA_HOME : %JAVA_HOME%
-echo MAVEN_HOME: %MAVEN_HOME%
+echo [INFO] Java : %JAVA_CMD%
+echo [INFO] Jar  : %DIST_DIR%\lowcarbon-system.jar
+echo.
+echo Starting GUI...
 echo.
 
-java -version
-mvn -version
-echo.
-
-REM --- 执行参数指定的动作 ---
-if "%~1"=="" goto :interactive
-if /i "%~1"=="compile"  goto :compile
-if /i "%~1"=="test"     goto :test
-if /i "%~1"=="package"  goto :package
-if /i "%~1"=="run"      goto :run
-if /i "%~1"=="clean"    goto :clean
-echo [WARN] 未知命令: %~1
-echo        可用命令: compile  test  package  run  clean
-goto :interactive
-
-:compile
-echo.
-echo --- mvn compile ---
-mvn -q compile
-goto :eof
-
-:test
-echo.
-echo --- mvn test ---
-mvn test
-goto :eof
-
-:package
-echo.
-echo --- mvn package ---
-mvn -q package -DskipTests
-echo.
-echo 打包完成，产物在 target\lowcarbon-system-jar-with-dependencies.jar
-goto :eof
-
-:run
-echo.
-echo --- run Main ---
-java -cp "target\classes;%MAVEN_HOME%\..\repository\org\xerial\sqlite-jdbc\3.45.1.0\sqlite-jdbc-3.45.1.0.jar" com.lowcarbon.Main
-goto :eof
-
-:clean
-echo.
-echo --- mvn clean ---
-mvn -q clean
-goto :eof
-
-:interactive
-echo 可用命令:
-echo   run.bat compile   - 编译
-echo   run.bat test      - 运行测试
-echo   run.bat package   - 打包 fat-jar
-echo   run.bat run       - 运行 Main
-echo   run.bat clean     - 清理 target
-echo.
-set /p CMD="请输入命令: "
-call "%~f0" %CMD%
-goto :eof
-
-endlocal
+cd /d "%DIST_DIR%"
+"%JAVA_CMD%" -jar lowcarbon-system.jar
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Exit code: %errorlevel%
+    pause
+)
