@@ -30,3 +30,12 @@ Desktop.ini
 
 # 本地临时下载文件（不上传 tools 目录）
 tools/
+
+# Runtime database (do NOT commit user data)
+target/dist/*.db
+target/dist/*.db-shm
+target/dist/*.db-wal
+lowcarbon.db
+lowcarbon.db-shm
+lowcarbon.db-wal
+*.log
